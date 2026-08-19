@@ -4,7 +4,7 @@ dynamic = ["version"]
 authors = [
   { name="Shimae", email="50893541+aiagate@users.noreply.github.com" },
 ]
-description = "A type-safe asynchronous Mediator implementation for Python"
+description = "An async request dispatcher for Python applications using flow-res and Injector"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

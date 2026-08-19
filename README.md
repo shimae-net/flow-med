@@ -4,15 +4,39 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 
-A high-performance, type-safe Mediator pattern implementation for Python 3.13+, built on top of [flow-res](https://github.com/aiagate/flow-res) and [injector](https://github.com/alecthomas/injector).
+A small, type-safe asynchronous request dispatcher for Python 3.13+
+applications that already use [flow-res](https://github.com/aiagate/flow-res)
+and [injector](https://github.com/alecthomas/injector).
 
-## Features
+`flow-med` maps each registered request type to one handler type. Dispatch can
+also use a compatible handler registered for a base request type. It resolves
+the selected handler through `Injector` and returns the `flow-res.Result`
+declared by the request. It is deliberately narrow: it makes this integration
+explicit without trying to be a general application framework.
 
-- **Result-Driven Development**: Built-in support for `flow-res` Result types, making error handling explicit and type-safe.
-- **Scoped Registration**: Application-owned registries keep handler discovery explicit and isolated.
-- **Dependency Injection**: Seamless integration with the `injector` library for robust dependency management.
-- **Native Async Support**: Designed from the ground up for `asyncio` with `AwaitableResult` support for elegant method chaining.
-- **Strict Type Safety**: Public type contracts are checked by `pyright`, with result-type validation at handler registration.
+## Is it a fit?
+
+Consider `flow-med` when an application already uses both `flow-res` and
+`Injector`, has asynchronous request/handler pairs, and benefits from keeping
+their registration in one application-owned registry.
+
+It is not intended to be a general-purpose event bus, CQRS framework, or
+replacement for direct function calls. It does not provide publish/subscribe,
+pipeline behaviors, handler discovery, synchronous dispatch, or framework
+integrations. For a small application with a few direct dependencies, adding a
+mediator is usually unnecessary.
+
+## What it provides
+
+- **Explicit registration**: Application-owned registries map requests to
+  handlers without global state or automatic discovery.
+- **`flow-res` contracts**: Requests and handlers declare the same
+  `Result[T, E]` type, which can be checked with Pyright and is validated
+  during registration.
+- **`Injector` resolution**: Handler construction and lifetime remain under
+  the application's existing Injector configuration.
+- **Async dispatch**: `send_async()` returns `AwaitableResult` so callers can
+  use the result operations provided by `flow-res`.
 
 ## Installation
 
@@ -20,7 +44,7 @@ A high-performance, type-safe Mediator pattern implementation for Python 3.13+, 
 pip install flow-med
 ```
 
-## Quick Start
+## Minimal example
 
 ### 1. Define Request and Result
 
@@ -49,7 +73,7 @@ registry = HandlerRegistry()
 class GetUserHandler(RequestHandler[GetUserRequest, Result[str, Exception]]):
     @override
     async def handle(self, request: GetUserRequest) -> Result[str, Exception]:
-        # Logic to get user
+        # Fetch the user here.
         return Ok(f"User {request.user_id}")
 ```
 
@@ -61,28 +85,24 @@ from injector import Injector
 from flow_med import Mediator
 
 async def main():
-    # Each application owns its Registry, Mediator, and Injector.
+    # Each application owns its registry, mediator, and Injector.
     mediator = Mediator(Injector(), registry)
 
-    # Send request and chain results using flow-res
+    # Dispatch the request; flow-res supplies the result helpers.
     result = await (
         mediator.send_async(GetUserRequest(user_id=1))
         .map(lambda name: f"Hello, {name}!")
         .unwrap()
     )
     
-    print(result) # Hello, User 1!
+    print(result)  # Hello, User 1!
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Registries are live references. Handlers added or explicitly replaced after a
-`Mediator` is created are visible to that mediator. The registry synchronizes
-its handler-map operations, so concurrent registration, replacement, and lookup
-cannot corrupt the mapping or bypass duplicate/existence checks. Separate
-registries are isolated, while sharing a registry explicitly shares its handler
-mappings.
+For a handler with injected dependencies, see the
+[DI example](examples/di_usage.py).
 
 ## Registration API
 
@@ -111,6 +131,12 @@ When sending a request, `Mediator` asks its `Injector` for the registered
 handler type. The injector therefore controls handler construction, dependency
 injection, and lifetime according to its bindings and scopes; `Mediator` does
 not cache handler instances.
+
+## Operational notes
+
+A registry is a live object: handlers added or explicitly replaced after a
+`Mediator` is created are visible to that mediator. Separate registries are
+isolated; sharing a registry explicitly shares its handler mappings.
 
 Treat registry setup and mutation as an application-startup concern even though
 the individual handler-map operations are synchronized. The lock does not
