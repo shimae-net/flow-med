@@ -134,8 +134,8 @@ def test_wheel_contains_py_typed_and_supports_consumer_typecheck(
         )
         metadata = wheel.read(metadata_path).decode()
         assert (
-            "Summary: A type-safe asynchronous Mediator implementation for Python"
-            in metadata
+            "Summary: An async request dispatcher for Python applications using "
+            "flow-res and Injector" in metadata
         )
         _assert_bounded_runtime_dependency(metadata, "flow-res")
         _assert_bounded_runtime_dependency(metadata, "injector")

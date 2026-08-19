@@ -4,6 +4,12 @@ This file records user-visible changes for tagged releases.
 
 ## Unreleased
 
+### Documentation
+
+- Repositioned `flow-med` as a deliberately narrow request dispatcher for
+  applications that already use `flow-res` and `Injector`. The README now
+  states its non-goals and removes the unsubstantiated performance claim.
+
 ### Compatibility
 
 - Bounded runtime dependencies to the verified 0.x API lines:
